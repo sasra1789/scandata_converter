@@ -52,3 +52,16 @@ def save_to_excel(data: list[dict], path: str):
 
     # wb.save(path)
     
+def load_shotnames_from_excel(path: str) -> dict:
+    # exr 경로 : 샷 이름
+    mapping = {}
+    wb = openpyxl.load_workbook(path)
+    ws = wb.active
+
+    for row in ws.iter_rows(min_row=2):
+        exr_path = row[0].value
+        shot_name = row[1].value
+        if exr_path and shot_name:
+            mapping[exr_path] = shot_name
+
+    return mapping

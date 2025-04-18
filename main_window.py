@@ -96,6 +96,7 @@ class MainWindow(QWidget):
         if folder:
             self.path_input.setText(folder)
             # TODO: load logic
+        
     
     # 썸네일 추가
     def create_thumbnail_widget(image_path, size=(80, 45)):

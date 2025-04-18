@@ -4,6 +4,8 @@ from model import  (excel_manager, converter)
 from PySide6.QtWidgets import QFileDialog, QMessageBox, QTableWidgetItem, QCheckBox, QLabel
 from model. excel_manager import save_to_excel
 from model.scan_structure import create_scan_structure
+from model.metadata_reader import extract_metadata_from_exr
+from model.metadata_reader import save_metadata_csv  # 기존에 만든 csv 저장 함수
 from PySide6.QtGui import QPixmap
 
 def on_select_path(ui):
@@ -58,40 +60,83 @@ def on_excel_save(main_window):
 
 
 def on_excel_edit(ui):
-    path = QFileDialog.getOpenFileName(ui, "Open Excel", filter="Excel Files (*.xls *.xlsx)")[0]
+    path = QFileDialog.getOpenFileName(ui, "Open Excel")[0]
     if not path:
         return
 
     mapping = excel_manager.load_shotnames_from_excel(path)
-    ui.update_shotnames(mapping)
-    QMessageBox.information(ui, "Loaded", "엑셀에서 샷네임 불러오기 완료!")
 
+    for row in range(ui.table.rowCount()):
+        scan_path = ui.table.item(row, 7).text()  # Scan Path 열
+        shot_name = mapping.get(scan_path)
+        if shot_name:
+            item = QTableWidgetItem(shot_name)
+            item.setFlags(item.flags() | Qt.ItemIsEditable)
+            ui.table.setItem(row, 4, item)  # Shot Name 열
+
+    QMessageBox.information(ui, "완료", "샷 이름이 엑셀에서 적용되었습니다.")
 
 def on_convert_clicked(ui):
     table_data = ui.get_table_data()
+
     for row in table_data:
-        src = row["path"]
+        seq = row["seq_name"]
         shot = row["shot_name"]
-        base_dir = f"/project/{row['seq_name']}/{shot}/plate/{row['version']}"
+        version = row["version"]
+        src = row["path"]
 
-        converter.convert_exr_to_jpg(src, 
-                                     f"{base_dir}/jpg")
-        converter.create_mp4_from_jpgs(f"{base_dir}/jpg", 
-                                       f"{base_dir}/mp4/{shot}_plate_{row['version']}.mp4")
-        converter.create_webm_from_mp4(f"{base_dir}/mp4/{shot}_plate_{row['version']}.mp4", f"{base_dir}/webm")
-        converter.generate_thumbnail(f"{base_dir}/jpg", f"{base_dir}/thumbnail")
-        converter.generate_montage(f"{base_dir}/jpg", f"{base_dir}/montage")
+        # 📁 폴더 생성
+        folder_paths = create_scan_structure("/project", seq, shot, version)
+        shot_base_name = f"{shot}_plate_{version}"
 
+        # 🎨 변환
+        converter.convert_exr_to_jpg(src, folder_paths["jpg"])
+        converter.create_mp4_from_jpgs(folder_paths["jpg"],
+                                       os.path.join(folder_paths["mp4"], f"{shot_base_name}.mp4"))
+        converter.create_webm_from_mp4(
+            os.path.join(folder_paths["mp4"], f"{shot_base_name}.mp4"),
+            folder_paths["webm"]
+        )
+        converter.generate_thumbnail(folder_paths["jpg"], folder_paths["thumbnail"])
+        converter.generate_montage(folder_paths["jpg"], folder_paths["montage"])
+
+        # 🧠 메타데이터 추출 및 저장
+        metadata = extract_metadata_from_exr(src)
+        if metadata:
+            metadata_csv_path = os.path.join(folder_paths["org"], "..", "metadata.csv")
+            save_metadata_csv(metadata, metadata_csv_path)
+            print(f"[Metadata] 저장 완료: {metadata_csv_path}")
 
 def on_publish_clicked(ui):
     table_data = ui.get_table_data()
+
     for row in table_data:
+        seq = row["seq_name"]
+        shot = row["shot_name"]
+        version = row["version"]
+
+        folder_paths = create_scan_structure("/project", seq, shot, version)
+        shot_base_name = f"{shot}_plate_{version}"
+
+        # 미디어 경로 구성
         media = {
-            "mp4": f"/project/{row['seq_name']}/{row['shot_name']}/plate/{row['version']}/mp4/{row['shot_name']}.mp4",
-            "webm": f"/project/{row['seq_name']}/{row['shot_name']}/plate/{row['version']}/webm/{row['shot_name']}.webm",
-            "thumbnail": f"/project/{row['seq_name']}/{row['shot_name']}/plate/{row['version']}/thumbnail/thumb.jpg"
+            "mp4": os.path.join(folder_paths["mp4"], f"{shot_base_name}.mp4"),
+            "webm": os.path.join(folder_paths["webm"], f"{shot_base_name}.webm"),
+            "thumbnail": os.path.join(folder_paths["thumbnail"], "thumb.jpg")
         }
-        shotgrid_api.upload_to_shotgrid(row, media)
+
+        # 샷 정보 전달 (추후 ShotGrid 등록용)
+        shot_info = {
+            "seq_name": seq,
+            "shot_name": shot,
+            "version": version,
+            "scan_path": row["path"]
+            # 필요하면 metadata도 추가 가능
+        }
+
+        # ShotGrid 등록 요청
+        # (아직 구현되지 않은 shotgrid_api.upload_to_shotgrid()에 연결됨)
+        shotgrid_api.upload_to_shotgrid(shot_info, media)
 
 def populate_table(ui, data):
     ui.table.setRowCount(len(data))
