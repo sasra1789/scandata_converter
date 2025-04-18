@@ -23,6 +23,7 @@ class MainWindow(QWidget):
         self.setWindowTitle("Shotgun: IO Manager")
         self.resize(1200, 700)
 
+
         # ===== 상단: 경로 + 버튼 + 옵션 =====
         self.path_input = QLineEdit()
         self.select_btn = QPushButton("Select")
@@ -181,27 +182,40 @@ class MainWindow(QWidget):
             self.table.setItem(row, 9, clip_item)
 
         
-    def populate_table(self, data: list[dict]):
+    # def populate_table(self, data: list[dict]):
+    #     self.table.setRowCount(len(data))
+    #     for row, item in enumerate(data):
+    #         # 0. Check
+    #         checkbox = QCheckBox()
+    #         checkbox.setChecked(item.get("check", True))
+    #         self.table.setCellWidget(row, 0, checkbox)
+
+    #         # 1. Thumbnail
+    #         thumb_widget = self.create_thumbnail_widget(item.get("thumbnail", ""))
+    #         self.table.setCellWidget(row, 1, thumb_widget)
+
+    #         # 2~9. 텍스트 셀
+    #         for col, key in enumerate(["roll", "seq", "shot", "version", "Filetype", "path", "scan", "clip"], start=2):
+    #             cell = QTableWidgetItem(item.get(key, ""))
+    #             editable_cols = [2, 3, 4, 8, 9]
+    #             if col in editable_cols:
+    #                 cell.setFlags(cell.flags() | Qt.ItemIsEditable)
+    #             else:
+    #                 cell.setFlags(Qt.ItemIsEnabled)
+    #             self.table.setItem(row, col, cell)
+
+    def populate_table(self, data):
         self.table.setRowCount(len(data))
+        self.table.setColumnCount(5)
+        self.table.setHorizontalHeaderLabels(["thumbnail", "File Name", "Width", "Height", "Date", "Lens"])
+
         for row, item in enumerate(data):
-            # 0. Check
-            checkbox = QCheckBox()
-            checkbox.setChecked(item.get("check", True))
-            self.table.setCellWidget(row, 0, checkbox)
-
-            # 1. Thumbnail
-            thumb_widget = self.create_thumbnail_widget(item.get("thumbnail", ""))
-            self.table.setCellWidget(row, 1, thumb_widget)
-
-            # 2~9. 텍스트 셀
-            for col, key in enumerate(["roll", "seq", "shot", "version", "Filetype", "path", "scan", "clip"], start=2):
-                cell = QTableWidgetItem(item.get(key, ""))
-                editable_cols = [2, 3, 4, 8, 9]
-                if col in editable_cols:
-                    cell.setFlags(cell.flags() | Qt.ItemIsEditable)
-                else:
-                    cell.setFlags(Qt.ItemIsEnabled)
-                self.table.setItem(row, col, cell)
+            self.table.setItem(row, 0, QTableWidgetItem(item.get("thumbnail", "")))
+            self.table.setItem(row, 1, QTableWidgetItem(item.get("FileName", "")))
+            self.table.setItem(row, 2, QTableWidgetItem(item.get("ImageWidth", "")))
+            self.table.setItem(row, 3, QTableWidgetItem(item.get("ImageHeight", "")))
+            self.table.setItem(row, 4, QTableWidgetItem(item.get("Date", "")))
+            self.table.setItem(row, 5, QTableWidgetItem(item.get("FocalLength35efl", "")))
 
     # 엑셀 데이터 가져옴 
     def get_table_data(self) -> list[dict]:
@@ -215,7 +229,7 @@ class MainWindow(QWidget):
 
             # 1. Thumbnail (경로는 따로 저장한 경우만)
 
-            
+
             # GUI용이라 패스, 또는 썸네일 경로 저장
             row_data["thumbnail"] = ""
 
@@ -254,6 +268,8 @@ class MainWindow(QWidget):
                 self.table.item(row, 4).setText(shot)  # Shot Name
 
         print(f"[UI] 엑셀 매핑 적용 완료")
+
+
 
 
 

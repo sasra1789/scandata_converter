@@ -2,13 +2,23 @@
 from model import  (excel_manager, converter)
                          # scan_loader, shotgrid_api)
 from PySide6.QtWidgets import QFileDialog, QMessageBox, QTableWidgetItem, QCheckBox, QLabel
-from model. excel_manager import save_to_excel
+from model.excel_manager import save_to_excel
 from model.scan_structure import create_scan_structure
-from model.metadata_reader import (extract_metadata_from_exr, save_metadata_csv ,
+from model.metadata_reader import (extract_metadata_from_exr, save_metadata_csv , generate_metadata_csv,
                                                 load_metadata_csv, generate_metadata_from_folder)
 from scanfile_handler import find_exr_files
+from model.converter import convert_exr_to_jpg_single_frame_ffmpeg
+# from main_window import create_thumbnail_widget
 from PySide6.QtGui import QPixmap
 import os
+
+
+def extract_first_exr_path(folder):
+    exr_list = [f for f in os.listdir(folder) if f.endswith(".exr")]
+    if not exr_list:
+        return None
+    return os.path.join(folder, exr_list[0])
+
 
 def on_select_path(ui):
     folder = QFileDialog.getExistingDirectory(ui, "Select Scan Folder")
@@ -16,17 +26,23 @@ def on_select_path(ui):
         return
 
     ui.path_input.setText(folder)
-    metadata_path = os.path.join(folder, "metadata.csv")
+    csv_path = os.path.join(folder, "metadata.csv")
 
-    if not os.path.exists(metadata_path):
-        generate_metadata_from_folder(folder, metadata_path)
 
-    # 2. metadata.csv 읽기
-    data = load_metadata_csv(metadata_path)
-    filtered = [row for row in data if row.get("check", "True") == "True"]
-    ui.populate_table(filtered)
+    # 1. metadata.csv 생성 (없을 경우만)
+    if not os.path.exists(csv_path):
+        generate_metadata_csv(folder, csv_path)
+
+    # 2. 첫 번째 EXR → 썸네일 JPG 변환
+    first_exr = extract_first_exr_path(folder)
+    thumb_path = "/home/rapa/westword_serin/thumb_preview.jpg"
+    convert_exr_to_jpg_single_frame_ffmpeg(first_exr, thumb_path)
+
+    data = load_metadata_csv(csv_path)
+    ui.populate_table(data) 
 
 def on_load_clicked(ui, scanfile_handler):
+    # scan_dir = 폴더선택창에서 고른 경로 
     scan_dir = ui.path_input.text()
     exr_files = find_exr_files(scan_dir)
 
@@ -45,7 +61,7 @@ def on_load_clicked(ui, scanfile_handler):
             "thumbnail": thumb_path,
             "roll": "",
             "seq_name": "",
-            # "shot_name": shot_name,
+            "shot_name": shot_name,
             "version": "v001",
             "type": "org",
             "path": exr_path,
@@ -161,31 +177,6 @@ def on_publish_clicked(ui):
         # (아직 구현되지 않은 shotgrid_api.upload_to_shotgrid()에 연결됨)
         shotgrid_api.upload_to_shotgrid(shot_info, media)
 
-def populate_table(ui, data):
-    ui.table.setRowCount(len(data))
-
-    for row, item in enumerate(data):
-        # 0. Check
-        checkbox = QCheckBox()
-        checkbox.setChecked(item.get("check", True))
-        ui.table.setCellWidget(row, 0, checkbox)
-
-        # 1. Thumbnail
-        # 썸네일 위젯
-        thumbnail_path = item.get("thumbnail", "")
-        thumb_widget = self.create_thumbnail_widget(thumbnail_path)
-        self.table.setCellWidget(row, 1, thumb_widget)
-
-
-        # 2~9. 나머지 셀들
-        keys = ["roll", "seq_name", "shot_name", "version", "Filetype",
-                "scan_path", "scan_name", "clip_name"]
-
-        for col, key in enumerate(keys, start=2):
-            val = item.get(key, "")
-            table_item = QTableWidgetItem(val)
-            table_item.setFlags(table_item.flags() | Qt.ItemIsEditable)
-            ui.table.setItem(row, col, table_item)
 
 # 데이터 추출함수     
 def get_table_data(ui):

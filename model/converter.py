@@ -4,33 +4,27 @@ import cv2
 import imageio
 import subprocess
 
-def convert_exr_to_jpg(src_path, dst_path):
-    """
-    EXR 파일을 JPG로 변환 (전체 시퀀스용)
-    """
-    img = imageio.imread(src_path)
-    os.makedirs(os.path.dirname(dst_path), exist_ok=True)
-    imageio.imwrite(dst_path, img)
-    print(f"[JPG] 변환 완료: {dst_path}")
 
-def convert_exr_to_jpg_single_frame_ffmpeg(exr_path: str, jpg_path: str):
+# 수상(exr_path)
+def convert_exr_to_jpg_single_frame_ffmpeg(src_exr, dst_jpg):
     """
     ffmpeg를 이용해 EXR 단일 프레임을 썸네일용 JPG로 변환
     """
-    os.makedirs(os.path.dirname(jpg_path), exist_ok=True)
+    cmd = f"ffmpeg -y -i \"{src_exr}\" -frames:v 1 \"{dst_jpg}\""
+    # os.makedirs(os.path.dirname(jpg_path), exist_ok=True)
 
-    command = [
-        "ffmpeg", "-y",
-        "-i", exr_path,
-        "-frames:v", "1",
-        "-q:v", "2",
-        jpg_path
-    ]
-    try:
-        subprocess.run(command, check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-        print(f"[FFMPEG] 썸네일 생성 완료: {jpg_path}")
-    except subprocess.CalledProcessError:
-        print(f"[FFMPEG] 변환 실패: {exr_path}")
+    # command = [
+    #     "ffmpeg", "-y",
+    #     "-i", exr_path,
+    #     "-frames:v", "1",
+    #     "-q:v", "2",
+    #     jpg_path
+    # ]
+    # try:
+    #     subprocess.run(command, check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    #     print(f"[FFMPEG] 썸네일 생성 완료: {jpg_path}")
+    # except subprocess.CalledProcessError:
+    #     print(f"[FFMPEG] 변환 실패: {exr_path}")
 
 def create_mp4_from_jpgs(jpg_dir, dst_path):
     """

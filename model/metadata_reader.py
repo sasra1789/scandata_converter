@@ -41,20 +41,14 @@ def save_metadata_csv(metadata_list, csv_path):
 
     print(f"[CSV] metadata 저장 완료: {csv_path}")
 
-def load_metadata_csv(csv_path):
-    """
-    metadata.csv 파일을 읽어서 딕셔너리 리스트로 반환
-    """
-    metadata_list = []
-    try:
-        with open(csv_path, "r", encoding="utf-8") as csvfile:
-            reader = csv.DictReader(csvfile)
-            for row in reader:
-                metadata_list.append(row)
-    except Exception as e:
-        print(f"[Error] metadata.csv 읽기 실패: {csv_path}", e)
 
-    return metadata_list
+# model/metadata_reader.py
+import csv
+
+def load_metadata_csv(csv_path):
+    with open(csv_path, newline="", encoding="utf-8") as f:
+        reader = csv.DictReader(f)
+        return list(reader)
 
 def generate_metadata_from_folder(scan_dir, csv_path):
     """
@@ -71,7 +65,7 @@ def generate_metadata_from_folder(scan_dir, csv_path):
     metadata_list = []
     for exr_path in exr_files:
         shot_name = auto_generate_shot_name(exr_path)
-        thumb_path = f"/tmp/scan_thumbs/{shot_name}.jpg"
+        thumb_path = f"/home/rapa/westworld_serin/scan_thumbs/{shot_name}.jpg"
         convert_exr_to_jpg_single_frame_ffmpeg(exr_path, thumb_path)
 
         meta = extract_metadata_from_exr(exr_path)
@@ -90,3 +84,27 @@ def generate_metadata_from_folder(scan_dir, csv_path):
         metadata_list.append(meta)
 
     save_metadata_csv(metadata_list, csv_path)
+
+
+def generate_metadata_csv(scan_dir, csv_path):
+    """
+    주어진 디렉토리(scan_dir) 내의 .exr 파일들의 메타데이터를 추출하여
+    metadata.csv로 저장하는 함수
+    """
+    # EXR 파일 목록 추출
+    exr_files = [f for f in os.listdir(scan_dir) if f.endswith(".exr")]
+    if not exr_files:
+        print("❌ EXR 파일이 없습니다.")
+        return
+
+    # 전체 경로로 변환
+    exr_paths = [os.path.join(scan_dir, f) for f in exr_files]
+
+    # ffmpeg나 exiftool이 경로에 없다면 에러 가능
+    try:
+        cmd = ["exiftool", "-csv"] + exr_paths
+        with open(csv_path, "w", encoding="utf-8") as f:
+            subprocess.run(cmd, stdout=f)
+        print(f"✅ metadata.csv 저장 완료: {csv_path}")
+    except Exception as e:
+        print(f"❌ metadata.csv 생성 실패: {e}")
