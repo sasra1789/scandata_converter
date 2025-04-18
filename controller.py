@@ -4,16 +4,27 @@ from model import  (excel_manager, converter)
 from PySide6.QtWidgets import QFileDialog, QMessageBox, QTableWidgetItem, QCheckBox, QLabel
 from model. excel_manager import save_to_excel
 from model.scan_structure import create_scan_structure
-from model.metadata_reader import extract_metadata_from_exr
-from model.metadata_reader import save_metadata_csv  # 기존에 만든 csv 저장 함수
+from model.metadata_reader import (extract_metadata_from_exr, save_metadata_csv ,
+                                                load_metadata_csv, generate_metadata_from_folder)
 from scanfile_handler import find_exr_files
 from PySide6.QtGui import QPixmap
+import os
 
 def on_select_path(ui):
     folder = QFileDialog.getExistingDirectory(ui, "Select Scan Folder")
-    if folder:
-        ui.path_input.setText(folder)
-        on_load_clicked(ui)
+    if not folder:
+        return
+
+    ui.path_input.setText(folder)
+    metadata_path = os.path.join(folder, "metadata.csv")
+
+    if not os.path.exists(metadata_path):
+        generate_metadata_from_folder(folder, metadata_path)
+
+    # 2. metadata.csv 읽기
+    data = load_metadata_csv(metadata_path)
+    filtered = [row for row in data if row.get("check", "True") == "True"]
+    ui.populate_table(filtered)
 
 def on_load_clicked(ui, scanfile_handler):
     scan_dir = ui.path_input.text()
@@ -41,34 +52,6 @@ def on_load_clicked(ui, scanfile_handler):
             "scan_name": "",
             "clip_name": ""
         })
-
-    ui.populate_table(data)
-    # scan_dir = ui.path_input.text()
-    # exr_files = [f for f in os.listdir(scan_dir) if f.lower().endswith(".exr")]
-    # if not exr_files:
-    #     QMessageBox.warning(ui, "No EXR", "선택한 폴더에 EXR 파일이 없습니다.")
-    #     return
-
-    # first_exr = os.path.join(scan_dir, exr_files[0])
-    # thumb_path = os.path.join(scan_dir, "thumb.jpg")
-    # converter.generate_thumbnail(scan_dir, thumb_path)
-
-    # metadata = extract_metadata_from_exr(first_exr)
-
-    # data = [{
-    #     "thumbnail": thumb_path,
-    #     "roll": "",
-    #     "seq_name": "",
-    #     "shot_name": "",
-    #     "version": "v001",
-    #     "type": "org",
-    #     "scan_path": first_exr,
-    #     "scan_name": os.path.basename(scan_dir),
-    #     "clip_name": "",
-    #     "resolution": metadata.get("Resolution", ""),
-    #     "frame_count": metadata.get("FrameCount", "")
-    # }]
-
     ui.populate_table(data)
 
 
@@ -101,17 +84,6 @@ def on_excel_edit(ui):
     ui.update_shotnames(mapping)
     QMessageBox.information(ui, "Loaded", "엑셀에서 샷네임 불러오기 완료!")
 
-    # for row in range(ui.table.rowCount()):
-    #     scan_path = ui.table.item(row, 7).text()  # Scan Path 열
-    #     shot_name = mapping.get(scan_path)
-    #     if shot_name:
-    #         item = QTableWidgetItem(shot_name)
-    #         item.setFlags(item.flags() | Qt.ItemIsEditable)
-    #         ui.table.setItem(row, 4, item)  # Shot Name 열
-
-    # QMessageBox.information(ui, "완료", "샷 이름이 엑셀에서 적용되었습니다.")
-
-
 
 def on_convert_clicked(ui):
     table_data = ui.get_table_data()
@@ -128,7 +100,7 @@ def on_convert_clicked(ui):
         shot_base = f"{shot}_plate_{version}"
 
         # 2 변환 처리
-        converter.convert_exr_to_jpg(src, base_paths["jpg"])
+        converter.convert_exr_to_jpg_single_frame_ffmpeg(src, base_paths["jpg"])
         converter.create_mp4_from_jpgs(base_paths["jpg"],
             os.path.join(base_paths["mp4"], f"{shot_base}.mp4"))
         converter.create_webm_from_mp4(
@@ -206,7 +178,7 @@ def populate_table(ui, data):
 
 
         # 2~9. 나머지 셀들
-        keys = ["roll", "seq_name", "shot_name", "version", "type",
+        keys = ["roll", "seq_name", "shot_name", "version", "Filetype",
                 "scan_path", "scan_name", "clip_name"]
 
         for col, key in enumerate(keys, start=2):
@@ -230,7 +202,7 @@ def get_table_data(ui):
         thumbnail_path = thumb_label.pixmap().cacheKey() if thumb_label else ""
 
         # 2~9. 텍스트 셀들
-        keys = ["roll", "seq_name", "shot_name", "version", "type",
+        keys = ["roll", "seq_name", "shot_name", "version", "Filetype",
                 "scan_path", "scan_name", "clip_name"]
         row_data = {"check": checked, "thumbnail": thumbnail_path}
 

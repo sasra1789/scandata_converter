@@ -1,6 +1,8 @@
 
 
+
 from model.converter_controller import load_scan_data
+from controller import on_select_path
 # 파일 상단
 from controller import on_excel_save
 
@@ -80,7 +82,7 @@ class MainWindow(QWidget):
         # bottom_layout.addWidget(self.publish_btn)
 
         # 엑셀 세이브 버튼 
-        self.save_btn.clicked.connect(lambda: on_excel_save(self))
+        self.save_btn.clicked.connect(lambda: on_excel_save(self)) # 클릭할 때 실행하게 하려면 lambda로 감싸야함 
 
 
         # ===== 메인 레이아웃 =====
@@ -91,7 +93,7 @@ class MainWindow(QWidget):
         self.setLayout(main_layout)
 
         # 연결 (예시)
-        self.select_btn.clicked.connect(self.select_path)
+        self.select_btn.clicked.connect(lambda: on_select_path(self))
 
 
         # load 버튼 연결
@@ -192,7 +194,7 @@ class MainWindow(QWidget):
             self.table.setCellWidget(row, 1, thumb_widget)
 
             # 2~9. 텍스트 셀
-            for col, key in enumerate(["roll", "seq", "shot", "version", "type", "path", "scan", "clip"], start=2):
+            for col, key in enumerate(["roll", "seq", "shot", "version", "Filetype", "path", "scan", "clip"], start=2):
                 cell = QTableWidgetItem(item.get(key, ""))
                 editable_cols = [2, 3, 4, 8, 9]
                 if col in editable_cols:
@@ -212,12 +214,14 @@ class MainWindow(QWidget):
             row_data["check"] = checkbox.isChecked() if checkbox else False
 
             # 1. Thumbnail (경로는 따로 저장한 경우만)
+
+            
             # GUI용이라 패스, 또는 썸네일 경로 저장
             row_data["thumbnail"] = ""
 
             # 2~9. 텍스트 셀
             keys = [
-                "roll", "seq_name", "shot_name", "version", "type",
+                "roll", "seq_name", "shot_name", "version", "Filetype",
                 "scan_path", "scan_name", "clip_name", "resolution", "frame_count"
             ]
             for col, key in enumerate(keys, start=2):
