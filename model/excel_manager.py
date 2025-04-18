@@ -1,20 +1,54 @@
-# 📁 model/excel_manager.py
+# 엑셀 저장 함수 
+import openpyxl
+from openpyxl.styles import Alignment
+from openpyxl import Workbook
 
-import pandas as pd
-import os
+def save_to_excel(data: list[dict], path: str):
+    
 
-def save_to_excel(data: list[dict], save_path: str):
-    df = pd.DataFrame(data)
-    os.makedirs(os.path.dirname(save_path), exist_ok=True)
-    df.to_excel(save_path, index=False)
+    wb = Workbook()
+    ws = wb.active
+    ws.title = "ScanData"
 
+    # 헤더 작성
+    if not data:
+        return
+    headers = list(data[0].keys())
+    ws.append(headers)
 
-def load_shotnames_from_excel(excel_path: str) -> dict:
-    if not os.path.exists(excel_path):
-        return {}
-    df = pd.read_excel(excel_path)
-    result = {}
-    for _, row in df.iterrows():
-        if 'scan_path' in row and 'shot_name' in row:
-            result[row['scan_path']] = row['shot_name']
-    return result
+    # 데이터 작성
+    for row in data:
+        ws.append([row.get(h, "") for h in headers])
+
+    wb.save(path)
+    print(f"[Excel Saved] {path}")
+
+    # wb = openpyxl.Workbook()
+    # ws = wb.active
+    # ws.title = "Scan List"
+
+    # # 헤더
+    # headers = ["Check", "Roll", "Seq", "Shot", "Version", "Type", "Path", "Scan", "Clip"]
+    # ws.append(headers)
+
+    # # 데이터 쓰기
+    # for d in data_list:
+    #     ws.append([
+    #         "Y" if d.get("check") else "N",
+    #         d.get("roll", ""),
+    #         d.get("seq", ""),
+    #         d.get("shot", ""),
+    #         d.get("version", ""),
+    #         d.get("type", ""),
+    #         d.get("path", ""),
+    #         d.get("scan", ""),
+    #         d.get("clip", "")
+    #     ])
+
+    # # 스타일
+    # for row in ws.iter_rows(min_row=2):
+    #     for cell in row:
+    #         cell.alignment = Alignment(horizontal="center")
+
+    # wb.save(path)
+    

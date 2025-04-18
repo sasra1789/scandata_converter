@@ -1,6 +1,8 @@
 
 
 from model.converter_controller import load_scan_data
+# 파일 상단
+from controller import on_excel_save
 
 from PySide6.QtWidgets import (
     QApplication, QWidget, QLabel, QLineEdit, QPushButton,
@@ -74,6 +76,10 @@ class MainWindow(QWidget):
         bottom_layout.addWidget(self.validate_btn)
         bottom_layout.addWidget(self.collect_btn)
         bottom_layout.addWidget(self.publish_btn)
+
+        # 엑셀 세이브 버튼 
+        self.save_btn.clicked.connect(lambda: on_excel_save(self))
+
 
         # ===== 메인 레이아웃 =====
         main_layout = QVBoxLayout()
@@ -163,6 +169,52 @@ class MainWindow(QWidget):
             clip_item = QTableWidgetItem("")
             clip_item.setFlags(Qt.ItemIsEnabled | Qt.ItemIsEditable)
             self.table.setItem(row, 9, clip_item)
+
+        
+    def populate_table(self, data: list[dict]):
+        self.table.setRowCount(len(data))
+        for row, item in enumerate(data):
+            # 0. Check
+            checkbox = QCheckBox()
+            checkbox.setChecked(item.get("check", True))
+            self.table.setCellWidget(row, 0, checkbox)
+
+            # 1. Thumbnail
+            thumb_widget = self.create_thumbnail_widget(item.get("thumbnail", ""))
+            self.table.setCellWidget(row, 1, thumb_widget)
+
+            # 2~9. 텍스트 셀
+            for col, key in enumerate(["roll", "seq", "shot", "version", "type", "path", "scan", "clip"], start=2):
+                cell = QTableWidgetItem(item.get(key, ""))
+                editable_cols = [2, 3, 4, 8, 9]
+                if col in editable_cols:
+                    cell.setFlags(cell.flags() | Qt.ItemIsEditable)
+                else:
+                    cell.setFlags(Qt.ItemIsEnabled)
+                self.table.setItem(row, col, cell)
+
+    # 엑셀 데이터 가져옴 
+    def get_table_data(self) -> list[dict]:
+        data = []
+        for row in range(self.table.rowCount()):
+            row_data = {}
+
+            # 0. Checkbox
+            checkbox = self.table.cellWidget(row, 0)
+            row_data["check"] = checkbox.isChecked() if checkbox else False
+
+            # 1. Thumbnail (경로는 따로 저장한 경우만)
+            # GUI용이라 패스, 또는 썸네일 경로 저장
+            row_data["thumbnail"] = ""
+
+            # 2~9. 텍스트 셀
+            keys = ["roll", "seq", "shot", "version", "type", "path", "scan", "clip"]
+            for col, key in enumerate(keys, start=2):
+                item = self.table.item(row, col)
+                row_data[key] = item.text() if item else ""
+            data.append(row_data)
+        return data
+
 
 
 if __name__ == "__main__":
