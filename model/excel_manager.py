@@ -3,65 +3,62 @@ import openpyxl
 from openpyxl.styles import Alignment
 from openpyxl import Workbook
 
-def save_to_excel(data: list[dict], path: str):
-    
-
-    wb = Workbook()
+def save_to_excel(data_list, path):
+    """
+    UI 테이블 데이터를 Excel 파일로 저장
+    """
+    wb = openpyxl.Workbook()
     ws = wb.active
     ws.title = "ScanData"
 
-    # 헤더 작성
-    if not data:
-        return
-    headers = list(data[0].keys())
+    headers = [
+        "Roll", "Seq Name", "Shot Name", "Version",
+        "Resolution", "FrameCount",
+        "Scan Path", "Clip Name"
+    ]
     ws.append(headers)
 
-    # 데이터 작성
-    for row in data:
-        ws.append([row.get(h, "") for h in headers])
+    for row in data_list:
+        ws.append([
+            row.get("roll", ""),
+            row.get("seq_name", ""),
+            row.get("shot_name", ""),
+            row.get("version", ""),
+            row.get("resolution", ""),
+            row.get("frame_count", ""),
+            row.get("scan_path", ""),
+            row.get("clip_name", "")
+        ])
 
+    # 헤더 bold 처리
+    for cell in ws[1]:
+        cell.font = Font(bold=True)
+
+    os.makedirs(os.path.dirname(path), exist_ok=True)
     wb.save(path)
-    print(f"[Excel Saved] {path}")
+    print(f"[Excel] 저장 완료: {path}")
 
-    # wb = openpyxl.Workbook()
-    # ws = wb.active
-    # ws.title = "Scan List"
-
-    # # 헤더
-    # headers = ["Check", "Roll", "Seq", "Shot", "Version", "Type", "Path", "Scan", "Clip"]
-    # ws.append(headers)
-
-    # # 데이터 쓰기
-    # for d in data_list:
-    #     ws.append([
-    #         "Y" if d.get("check") else "N",
-    #         d.get("roll", ""),
-    #         d.get("seq", ""),
-    #         d.get("shot", ""),
-    #         d.get("version", ""),
-    #         d.get("type", ""),
-    #         d.get("path", ""),
-    #         d.get("scan", ""),
-    #         d.get("clip", "")
-    #     ])
-
-    # # 스타일
-    # for row in ws.iter_rows(min_row=2):
-    #     for cell in row:
-    #         cell.alignment = Alignment(horizontal="center")
-
-    # wb.save(path)
     
-def load_shotnames_from_excel(path: str) -> dict:
-    # exr 경로 : 샷 이름
-    mapping = {}
+
+def load_shotnames_from_excel(path):
+    """
+    PM이 편집한 Excel 파일에서 Shot Name / Seq Name을 다시 불러옴
+    """
     wb = openpyxl.load_workbook(path)
     ws = wb.active
 
-    for row in ws.iter_rows(min_row=2):
-        exr_path = row[0].value
-        shot_name = row[1].value
-        if exr_path and shot_name:
-            mapping[exr_path] = shot_name
+    mapping = {}
 
+    for row in ws.iter_rows(min_row=2, values_only=True):
+        scan_path = row[6]  # Scan Path 열
+        shot_name = row[2]  # Shot Name 열
+        seq_name = row[1]   # Seq Name 열
+
+        if scan_path:
+            mapping[scan_path] = {
+                "shot_name": shot_name,
+                "seq_name": seq_name
+            }
+
+    print(f"[Excel] 불러온 샷 매핑: {len(mapping)}개")
     return mapping

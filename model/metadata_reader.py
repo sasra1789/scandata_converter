@@ -1,37 +1,55 @@
-import csv
+
 import os
-
-def save_metadata_csv(metadata_dict, save_path):
-    """
-    메타데이터 딕셔너리를 CSV 형식으로 저장합니다.
-
-    Parameters:
-        metadata_dict (dict): {"key": value, ...}
-        save_path (str): 저장할 csv 파일 경로
-    """
-    os.makedirs(os.path.dirname(save_path), exist_ok=True)
-
-    with open(save_path, "w", newline="", encoding="utf-8") as csvfile:
-        writer = csv.writer(csvfile)
-        writer.writerow(["Key", "Value"])
-        for key, value in metadata_dict.items():
-            writer.writerow([key, value])
-
-    return save_path
-
-
-
-# metadata_reader.py
-
 import subprocess
+# import pandas as pd
 
+def save_metadata_csv(data, project_root, shot_name, version, episode=None):
+    """
+    plate 버전 디렉토리에 metadata.csv 자동 저장
+
+    Args:
+        data (list[dict]): 저장할 메타데이터 (딕셔너리 리스트)
+        project_root (str): 프로젝트 루트 경로 (/home/rapa/westworld_serin)
+        shot_name (str): 샷 이름 (예: S030_0100)
+        version (str): plate 버전 (예: v001)
+        episode (str, optional): 에피소드 (예: EP01), 없으면 생략
+    """
+    # 시퀀스 이름 추출
+    sequence_name = shot_name.split("_")[0]
+
+    # 경로 조합
+    base_path = os.path.join(project_root, "seq")
+    if episode:
+        base_path = os.path.join(base_path, episode)
+
+    plate_path = os.path.join(
+        base_path,
+        sequence_name,
+        shot_name,
+        "plate",
+        version
+    )
+
+    # 디렉토리 생성
+    os.makedirs(plate_path, exist_ok=True)
+
+    # 저장 경로
+    save_path = os.path.join(plate_path, "metadata.csv")
+
+    # 저장
+    df = pd.DataFrame(data)
+    df.to_csv(save_path, index=False)
+
+    print(f"metadata 저장 완료: {save_path}")
+
+
+# exif tool 을 이용하여 .exr 파일의 메타데이터 추출 
 def extract_metadata_from_exr(filepath: str) -> dict:
     """
     exiftool을 이용해 EXR 파일의 메타데이터를 추출하고 딕셔너리로 반환합니다.
     리눅스에서만 동작합니다.
     """
     try:
-        # exiftool 실행
         result = subprocess.run(
             ["exiftool", filepath],
             stdout=subprocess.PIPE,
@@ -52,30 +70,14 @@ def extract_metadata_from_exr(filepath: str) -> dict:
         # 필요한 주요 키만 추출해서 리네이밍
         simplified = {
             "Resolution": f"{metadata.get('Image Width')}x{metadata.get('Image Height')}",
-            "FrameCount": metadata.get("Image Size"),  # 또는 프레임 카운트 추정값
+            "FrameCount": metadata.get("Frame Count") or metadata.get("Image Size"),
             "Camera": metadata.get("Camera Model Name"),
             "Lens": metadata.get("Lens"),
             "Date": metadata.get("Create Date") or metadata.get("Date/Time Original"),
         }
 
-        # 빈 값 제거
         return {k: v for k, v in simplified.items() if v}
 
     except Exception as e:
         print(f"[Error] 메타데이터 추출 실패: {e}")
         return {}
-
-
-# 예시 실행
-example_metadata = {
-    "Resolution": "1920x1080",
-    "FrameCount": 120,
-    "Camera": "ALEXA LF",
-    "Date": "2024-06-15",
-    "Lens": "35mm"
-}
-
-
-
-
-save_metadata_csv(example_metadata, "/mnt/data/sample_metadata.csv")

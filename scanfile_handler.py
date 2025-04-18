@@ -9,3 +9,5 @@ def find_exr_files(folder_path):
         for f in sorted(os.listdir(folder_path))
         if f.lower().endswith(".exr")
     ]
+
+

@@ -43,23 +43,25 @@ class MainWindow(QWidget):
 
         # ===== 중간: 테이블 =====
         self.table = QTableWidget()
-        self.table.setColumnCount(10)
+        self.table.setColumnCount(12)
         self.table.setHorizontalHeaderLabels([
             "Check", "Thumbnail", "Roll", "Seq Name", "Shot Name", 
-            "Version", "Type", "Scan Path", "Scan Name", "Clip Name"
+            "Version", "Type", "Scan Path", "Scan Name", "Clip Name",
+            "Resolution", "FrameCount"
         ])
+
         self.table.horizontalHeader().setSectionResizeMode(QHeaderView.Stretch)
 
         # ===== 하단: Excel 경로 + 버튼들 =====
-        self.excel_label = QLabel("/home/rapa/westworld_serin/converter/scanlist_01.xls")
-        self.save_btn = QPushButton("Save")
-        self.edit_btn = QPushButton("Edit")
-        self.validate_btn = QPushButton("Validate")
-        self.collect_btn = QPushButton("Collect")
-        self.publish_btn = QPushButton("Publish")
+        # self.excel_label = QLabel("/home/rapa/westworld_serin/converter/scanlist_01.csv")
+        # self.save_btn = QPushButton("Save")
+        # self.edit_btn = QPushButton("Edit")
+        # self.validate_btn = QPushButton("Validate")
+        # self.collect_btn = QPushButton("Collect")
+        # self.publish_btn = QPushButton("Publish")
 
         # ===== 엑셀 경로 라벨 =====
-        self.excel_label = QLabel("/home/rapa/westworld_serin/converter/scanlist_01.xls")
+        self.excel_label = QLabel("/home/rapa/westworld_serin/converter/scanlist_01.csv")
 
         # ===== Excel 버튼 =====
         self.save_btn = QPushButton(" Excel Save")
@@ -73,9 +75,9 @@ class MainWindow(QWidget):
         bottom_layout.addStretch()
         bottom_layout.addWidget(self.save_btn)
         bottom_layout.addWidget(self.edit_btn)
-        bottom_layout.addWidget(self.validate_btn)
-        bottom_layout.addWidget(self.collect_btn)
-        bottom_layout.addWidget(self.publish_btn)
+
+        # bottom_layout.addWidget(self.collect_btn)
+        # bottom_layout.addWidget(self.publish_btn)
 
         # 엑셀 세이브 버튼 
         self.save_btn.clicked.connect(lambda: on_excel_save(self))
@@ -90,6 +92,10 @@ class MainWindow(QWidget):
 
         # 연결 (예시)
         self.select_btn.clicked.connect(self.select_path)
+
+
+        # load 버튼 연결
+        self.load_btn.clicked.connect(self.on_load_clicked)
 
     def select_path(self):
         folder = QFileDialog.getExistingDirectory(self, "Select Scan Folder")
@@ -117,9 +123,10 @@ class MainWindow(QWidget):
     
 
     # 로드했을 때
-    def on_load_clicked(self):
+    def on_load_clicked(self, create_thumbnail_widget, create_checkbox_widget):
         folder = self.path_input.text()
         scan_data = load_scan_data(folder)
+        self.populate_table(scan_data)
 
         self.table.setRowCount(len(scan_data))
         for row, item in enumerate(scan_data):
@@ -132,12 +139,12 @@ class MainWindow(QWidget):
             self.table.setCellWidget(row, 1, thumb_widget)
 
             # 2. Roll
-            roll_item = QTableWidgetItem("Roll01")
+            roll_item = QTableWidgetItem("Roll")
             roll_item.setFlags(Qt.ItemIsEnabled | Qt.ItemIsEditable)
             self.table.setItem(row, 2, roll_item)
 
             # 3. Seq Name
-            seq_item = QTableWidgetItem("S030")
+            seq_item = QTableWidgetItem("Sequence")
             seq_item.setFlags(Qt.ItemIsEnabled | Qt.ItemIsEditable)
             self.table.setItem(row, 3, seq_item)
 
@@ -209,12 +216,41 @@ class MainWindow(QWidget):
             row_data["thumbnail"] = ""
 
             # 2~9. 텍스트 셀
-            keys = ["roll", "seq", "shot", "version", "type", "path", "scan", "clip"]
+            keys = [
+                "roll", "seq_name", "shot_name", "version", "type",
+                "scan_path", "scan_name", "clip_name", "resolution", "frame_count"
+            ]
             for col, key in enumerate(keys, start=2):
                 item = self.table.item(row, col)
                 row_data[key] = item.text() if item else ""
             data.append(row_data)
         return data
+    
+    def update_shotnames(self, mapping):
+        """
+        엑셀에서 불러온 Shot/Seq 이름을 테이블에 반영
+        mapping = {
+            "scan_path": {
+                "seq_name": ...,
+                "shot_name": ...
+            }
+        }
+        """
+        for row in range(self.table.rowCount()):
+            scan_path_item = self.table.item(row, 7)  # Scan Path 열
+            if not scan_path_item:
+                continue
+
+            path = scan_path_item.text()
+            if path in mapping:
+                seq = mapping[path].get("seq_name", "")
+                shot = mapping[path].get("shot_name", "")
+
+                self.table.item(row, 3).setText(seq)   # Seq Name
+                self.table.item(row, 4).setText(shot)  # Shot Name
+
+        print(f"[UI] 엑셀 매핑 적용 완료")
+
 
 
 
