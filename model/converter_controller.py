@@ -1,11 +1,11 @@
 # controller/converter_controller.py
 
-from scanfile_handler import find_exr_files
+from scanfile_handler import find_exr_sequences
 import os
 
 def load_scan_data(folder_path):
     """EXR 파일을 기반으로 테이블에 보여줄 데이터를 구성"""
-    file_list = find_exr_files(folder_path)
+    file_list = find_exr_sequences(folder_path)
     rows = []
 
     for f in file_list:

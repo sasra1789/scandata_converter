@@ -5,8 +5,8 @@ from PySide6.QtWidgets import QFileDialog, QMessageBox, QTableWidgetItem, QCheck
 from model.excel_manager import save_to_excel
 from model.scan_structure import create_scan_structure
 from model.metadata_reader import (extract_metadata_from_exr, save_metadata_csv , generate_metadata_csv,
-                                                load_metadata_csv, generate_metadata_from_folder)
-from scanfile_handler import find_exr_files
+                                                load_metadata_csv)
+from scanfile_handler import find_exr_sequences
 from model.converter import convert_exr_to_jpg_single_frame_ffmpeg
 # from main_window import create_thumbnail_widget
 from PySide6.QtGui import QPixmap
@@ -19,55 +19,53 @@ def extract_first_exr_path(folder):
         return None
     return os.path.join(folder, exr_list[0])
 
-
+# 썸넬생성
 def on_select_path(ui):
     folder = QFileDialog.getExistingDirectory(ui, "Select Scan Folder")
-    if not folder:
-        return
+    if folder:
+        ui.path_input.setText(folder)
 
-    ui.path_input.setText(folder)
-    csv_path = os.path.join(folder, "metadata.csv")
+        # 1. 썸네일 생성
+        exr_files = [f for f in os.listdir(folder) if f.endswith(".exr")]
+        if exr_files:
+            exr_path = os.path.join(folder, exr_files[0])
+            thumb_path = os.path.join(folder, "thumbnail", "thumb.jpg")
+            convert_exr_to_jpg_single_frame_ffmpeg(exr_path, thumb_path)
 
+        # 2. metadata 생성
+        csv_path = os.path.join(folder, "metadata.csv")
+        if not os.path.exists(csv_path):
+            generate_metadata_csv(folder, csv_path)
 
-    # 1. metadata.csv 생성 (없을 경우만)
-    if not os.path.exists(csv_path):
-        generate_metadata_csv(folder, csv_path)
+        # 3. 테이블 로딩
+        data = load_metadata_csv(csv_path)
+        ui.populate_table(data)
 
-    # 2. 첫 번째 EXR → 썸네일 JPG 변환
-    first_exr = extract_first_exr_path(folder)
-    thumb_path = "/home/rapa/westword_serin/thumb_preview.jpg"
-    convert_exr_to_jpg_single_frame_ffmpeg(first_exr, thumb_path)
-
-    data = load_metadata_csv(csv_path)
-    ui.populate_table(data) 
-
-def on_load_clicked(ui, scanfile_handler):
+def on_load_clicked(ui):
     # scan_dir = 폴더선택창에서 고른 경로 
     scan_dir = ui.path_input.text()
-    exr_files = find_exr_files(scan_dir)
-
-    thumb_dir = "/home/rapa/westworld_serin/scan_thumbs"
-    os.makedirs(thumb_dir, exist_ok=True)
-
+    sequences = find_exr_sequences(scan_dir)
     data = []
-    for exr_path in exr_files:
-        shot_name = scanfile_handler.auto_generate_shot_name(exr_path)
-        thumb_path = os.path.join(thumb_dir, f"{shot_name}.jpg")
+    for seq in sequences:
+        # 시퀀스 베이스로 shot 이름 생성 (PM이 이후 엑셀에서 수정 가능)
+        shot_name = seq['basename']
 
-        #  썸네일 생성
-        extract_metadata_from_exr(exr_path, thumb_path)
+        # 썸네일은 시퀀스의 첫 프레임으로 사용
+        thumbnail = seq['sample']
 
         data.append({
-            "thumbnail": thumb_path,
-            "roll": "",
-            "seq_name": "",
+            "thumbnail": thumbnail,
+            "roll": "", 
+            "seq_name": "", 
             "shot_name": shot_name,
             "version": "v001",
             "type": "org",
-            "path": exr_path,
+            "path": seq['dir'],       # 폴더 경로만 저장 (시퀀스 단위)
             "scan_name": "",
             "clip_name": ""
         })
+
+
     ui.populate_table(data)
 
 

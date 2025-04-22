@@ -1,14 +1,23 @@
 # model/scanfile_handler.py
-
 import os
+import pyseq
 
-def find_exr_files(folder_path):
-    """주어진 폴더에서 .exr 파일만 찾아 리스트로 반환"""
-    exr_files = []
-    # 인식 못해서 디렉토리 안 디렉토리 까지 찾도록 바뚬 
-    for root, _, files in os.walk(folder_path):
-        for f in files:
-            if f.lower().endswith(".exr"):
-                exr_files.append(os.path.join(root, f))
+def find_exr_sequences(folder_path):
+    """
+    pyseq를 이용해 EXR 시퀀스를 자동으로 묶어 리턴
+    """
+    all_files = [os.path.join(folder_path, f) for f in os.listdir(folder_path) if f.lower().endswith(".exr")]
+    sequences = pyseq.get_sequences(all_files)
 
-    return exr_files
+    result = []
+    for seq in sequences:
+        result.append({
+            "dir": seq.dirname(),
+            "basename": seq.basename(),
+            "padding": seq.padding(),    # ex: %04d
+            "start": seq.start(),
+            "end": seq.end(),
+            "length": seq.length(),
+            "sample": seq[0].path        # 대표 프레임 경로 (썸네일용)
+        })
+    return result

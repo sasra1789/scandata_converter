@@ -181,68 +181,74 @@ class MainWindow(QWidget):
             clip_item.setFlags(Qt.ItemIsEnabled | Qt.ItemIsEditable)
             self.table.setItem(row, 9, clip_item)
 
-        
-    # def populate_table(self, data: list[dict]):
-    #     self.table.setRowCount(len(data))
-    #     for row, item in enumerate(data):
-    #         # 0. Check
-    #         checkbox = QCheckBox()
-    #         checkbox.setChecked(item.get("check", True))
-    #         self.table.setCellWidget(row, 0, checkbox)
-
-    #         # 1. Thumbnail
-    #         thumb_widget = self.create_thumbnail_widget(item.get("thumbnail", ""))
-    #         self.table.setCellWidget(row, 1, thumb_widget)
-
-    #         # 2~9. 텍스트 셀
-    #         for col, key in enumerate(["roll", "seq", "shot", "version", "Filetype", "path", "scan", "clip"], start=2):
-    #             cell = QTableWidgetItem(item.get(key, ""))
-    #             editable_cols = [2, 3, 4, 8, 9]
-    #             if col in editable_cols:
-    #                 cell.setFlags(cell.flags() | Qt.ItemIsEditable)
-    #             else:
-    #                 cell.setFlags(Qt.ItemIsEnabled)
-    #             self.table.setItem(row, col, cell)
-
-    def populate_table(self, data):
-        self.table.setRowCount(len(data))
-        self.table.setColumnCount(5)
-        self.table.setHorizontalHeaderLabels(["thumbnail", "File Name", "Width", "Height", "Date", "Lens"])
+    def populate_table(ui, data):
+        ui.table.setRowCount(len(data))
 
         for row, item in enumerate(data):
-            self.table.setItem(row, 0, QTableWidgetItem(item.get("thumbnail", "")))
-            self.table.setItem(row, 1, QTableWidgetItem(item.get("FileName", "")))
-            self.table.setItem(row, 2, QTableWidgetItem(item.get("ImageWidth", "")))
-            self.table.setItem(row, 3, QTableWidgetItem(item.get("ImageHeight", "")))
-            self.table.setItem(row, 4, QTableWidgetItem(item.get("Date", "")))
-            self.table.setItem(row, 5, QTableWidgetItem(item.get("FocalLength35efl", "")))
+            # 0. 체크박스
+            checkbox = QCheckBox()
+            checkbox.setChecked(item.get("check", True))
+            ui.table.setCellWidget(row, 0, checkbox)
 
-    # 엑셀 데이터 가져옴 
-    def get_table_data(self) -> list[dict]:
-        data = []
-        for row in range(self.table.rowCount()):
-            row_data = {}
+            #  1. Thumbnail - sample로부터 썸네일 만들기
+            thumb_label = QLabel()
+            thumb_path = item.get("thumbnail", "")
+            pixmap = QPixmap(thumb_path)
+            if not pixmap.isNull():
+                thumb_label.setPixmap(pixmap.scaled(80, 45))  # 썸네일 사이즈
+            else:
+                thumb_label.setText("No Image")
+            ui.table.setCellWidget(row, 1, thumb_label)
 
-            # 0. Checkbox
-            checkbox = self.table.cellWidget(row, 0)
-            row_data["check"] = checkbox.isChecked() if checkbox else False
+            # 2~9. 나머지 필드들
+            keys = ["roll", "seq_name", "shot_name", "version", "type",
+                    "path", "scan_name", "clip_name"]
 
-            # 1. Thumbnail (경로는 따로 저장한 경우만)
-
-
-            # GUI용이라 패스, 또는 썸네일 경로 저장
-            row_data["thumbnail"] = ""
-
-            # 2~9. 텍스트 셀
-            keys = [
-                "roll", "seq_name", "shot_name", "version", "Filetype",
-                "scan_path", "scan_name", "clip_name", "resolution", "frame_count"
-            ]
             for col, key in enumerate(keys, start=2):
-                item = self.table.item(row, col)
-                row_data[key] = item.text() if item else ""
-            data.append(row_data)
-        return data
+                val = item.get(key, "")
+                item_widget = QTableWidgetItem(val)
+                item_widget.setFlags(item_widget.flags() | Qt.ItemIsEditable)
+                ui.table.setItem(row, col, item_widget) 
+
+    # def populate_table(self, data):
+    #     self.table.setRowCount(len(data))
+    #     self.table.setColumnCount(5)
+    #     self.table.setHorizontalHeaderLabels(["thumbnail", "File Name", "Width", "Height", "Date", "Lens"])
+
+    #     for row, item in enumerate(data):
+    #         self.table.setItem(row, 0, QTableWidgetItem(item.get("thumbnail", "")))
+    #         self.table.setItem(row, 1, QTableWidgetItem(item.get("FileName", "")))
+    #         self.table.setItem(row, 2, QTableWidgetItem(item.get("ImageWidth", "")))
+    #         self.table.setItem(row, 3, QTableWidgetItem(item.get("ImageHeight", "")))
+    #         self.table.setItem(row, 4, QTableWidgetItem(item.get("Date", "")))
+    #         self.table.setItem(row, 5, QTableWidgetItem(item.get("FocalLength35efl", "")))
+
+    # # 엑셀 데이터 가져옴 
+    # def get_table_data(self) -> list[dict]:
+    #     data = []
+    #     for row in range(self.table.rowCount()):
+    #         row_data = {}
+
+    #         # 0. Checkbox
+    #         checkbox = self.table.cellWidget(row, 0)
+    #         row_data["check"] = checkbox.isChecked() if checkbox else False
+
+    #         # 1. Thumbnail (경로는 따로 저장한 경우만)
+
+
+    #         # GUI용이라 패스, 또는 썸네일 경로 저장
+    #         row_data["thumbnail"] = ""
+
+    #         # 2~9. 텍스트 셀
+    #         keys = [
+    #             "roll", "seq_name", "shot_name", "version", "Filetype",
+    #             "scan_path", "scan_name", "clip_name", "resolution", "frame_count"
+    #         ]
+    #         for col, key in enumerate(keys, start=2):
+    #             item = self.table.item(row, col)
+    #             row_data[key] = item.text() if item else ""
+    #         data.append(row_data)
+    #     return data
     
     def update_shotnames(self, mapping):
         """
