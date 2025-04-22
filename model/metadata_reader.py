@@ -1,4 +1,5 @@
-# 📁 model/metadata_reader.py
+# exr에서 해상도수, 프레임수, 렌즈 정보 등을 exiftool로 추출하여 저장 
+#  model/metadata_reader.py
 import os
 import csv
 import subprocess
@@ -23,6 +24,7 @@ def extract_metadata_from_exr(filepath):
 
     return metadata
 
+
 def save_metadata_csv(metadata_list, csv_path):
     """
     딕셔너리 리스트를 CSV로 저장
@@ -43,14 +45,28 @@ def save_metadata_csv(metadata_list, csv_path):
 
 
 def load_metadata_csv(csv_path):
+    """
+    metadata.csv를 읽고 썸네일 경로를 절대경로로 변환해서 리턴
+    """
+    base_dir = os.path.dirname(csv_path)
+
     with open(csv_path, newline="", encoding="utf-8") as f:
         reader = csv.DictReader(f)
-        return list(reader)
+        rows = list(reader)
 
+        for row in rows:
+            # 썸네일 경로가 있으면 절대경로로 변환
+            if "thumbnail" in row and row["thumbnail"]:
+                row["thumbnail"] = os.path.join(base_dir, row["thumbnail"])
+
+        return rows
+
+
+#이건가 
 def generate_metadata_csv(scan_dir, csv_path):
     """
     EXR 파일들의 메타데이터를 csv로 저장하고,
-    각 행에 썸네일 경로 컬럼을 수동으로 삽입 (pandas 없이 처리)
+    각 행에 썸네일 경로 컬럼을 수동으로 삽입 
     """
     exr_files = [f for f in os.listdir(scan_dir) if f.endswith(".exr")]
     if not exr_files:

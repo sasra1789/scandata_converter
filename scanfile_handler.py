@@ -1,3 +1,4 @@
+# .exr 또는 .mov 등 파일을 스캔하여 리스트로 반환하는 유틸리티성 파일 
 # model/scanfile_handler.py
 import os
 import pyseq

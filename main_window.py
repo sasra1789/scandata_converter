@@ -1,7 +1,7 @@
+# UI 구성
 
 
-
-from model.converter_controller import load_scan_data
+from model.converter import load_scan_data
 from controller import on_select_path
 # 파일 상단
 from controller import on_excel_save
@@ -12,6 +12,7 @@ from PySide6.QtWidgets import (
     QCheckBox, QComboBox,  QFileDialog, QHeaderView
 )
 from PySide6.QtGui import QPixmap
+import os
 import sys
 
 
@@ -27,7 +28,7 @@ class MainWindow(QWidget):
         # ===== 상단: 경로 + 버튼 + 옵션 =====
         self.path_input = QLineEdit()
         self.select_btn = QPushButton("Select")
-        self.load_btn = QPushButton("Load")
+
 
         self.option_non_retime = QCheckBox("Non Retime")
         self.option_mov_to_dpx = QCheckBox("MOV to DPX")
@@ -38,7 +39,6 @@ class MainWindow(QWidget):
         top_layout.addWidget(QLabel("Path:"))
         top_layout.addWidget(self.path_input)
         top_layout.addWidget(self.select_btn)
-        top_layout.addWidget(self.load_btn)
         top_layout.addWidget(self.option_non_retime)
         top_layout.addWidget(self.option_mov_to_dpx)
         top_layout.addWidget(QLabel("Colorspace:"))
@@ -67,7 +67,7 @@ class MainWindow(QWidget):
         self.excel_label = QLabel("/home/rapa/westworld_serin/converter/scanlist_01.csv")
 
         # ===== Excel 버튼 =====
-        self.save_btn = QPushButton(" Excel Save")
+        self.save_btn = QPushButton("Excel Save")
         self.edit_btn = QPushButton("Excel Edit")
         excel_btn_layout = QHBoxLayout()
         excel_btn_layout.addWidget(self.save_btn)
@@ -94,11 +94,8 @@ class MainWindow(QWidget):
         self.setLayout(main_layout)
 
         # 연결 (예시)
-        self.select_btn.clicked.connect(lambda: on_select_path(self))
+        self.select_btn.clicked.connect(lambda: on_select_path(self)) # 클릭할 때 실행하게 하려면 lambda로 감싸야함
 
-
-        # load 버튼 연결
-        self.load_btn.clicked.connect(self.on_load_clicked)
 
     def select_path(self):
         folder = QFileDialog.getExistingDirectory(self, "Select Scan Folder")
@@ -125,131 +122,38 @@ class MainWindow(QWidget):
     
     
 
-    # 로드했을 때
-    def on_load_clicked(self, create_thumbnail_widget, create_checkbox_widget):
-        folder = self.path_input.text()
-        scan_data = load_scan_data(folder)
-        self.populate_table(scan_data)
-
-        self.table.setRowCount(len(scan_data))
-        for row, item in enumerate(scan_data):
-            # 0. Check
-            checkbox = create_checkbox_widget()
-            self.table.setCellWidget(row, 0, checkbox)
-
-            # 1. Thumbnail
-            thumb_widget = create_thumbnail_widget(item["thumbnail"])
-            self.table.setCellWidget(row, 1, thumb_widget)
-
-            # 2. Roll
-            roll_item = QTableWidgetItem("Roll")
-            roll_item.setFlags(Qt.ItemIsEnabled | Qt.ItemIsEditable)
-            self.table.setItem(row, 2, roll_item)
-
-            # 3. Seq Name
-            seq_item = QTableWidgetItem("Sequence")
-            seq_item.setFlags(Qt.ItemIsEnabled | Qt.ItemIsEditable)
-            self.table.setItem(row, 3, seq_item)
-
-            # 4. Shot Name
-            shot_item = QTableWidgetItem(item["shot_name"])
-            shot_item.setFlags(Qt.ItemIsEnabled | Qt.ItemIsEditable)
-            self.table.setItem(row, 4, shot_item)
-
-            # 5. Version
-            ver_item = QTableWidgetItem(item["version"])
-            ver_item.setFlags(Qt.ItemIsEnabled)
-            self.table.setItem(row, 5, ver_item)
-
-            # 6. Type
-            type_item = QTableWidgetItem("exr")
-            type_item.setFlags(Qt.ItemIsEnabled)
-            self.table.setItem(row, 6, type_item)
-
-            # 7. Scan Path
-            path_item = QTableWidgetItem(item["path"])
-            path_item.setFlags(Qt.ItemIsEnabled)
-            self.table.setItem(row, 7, path_item)
-
-            # 8. Scan Name
-            scan_item = QTableWidgetItem("")
-            scan_item.setFlags(Qt.ItemIsEnabled | Qt.ItemIsEditable)
-            self.table.setItem(row, 8, scan_item)
-
-            # 9. Clip Name
-            clip_item = QTableWidgetItem("")
-            clip_item.setFlags(Qt.ItemIsEnabled | Qt.ItemIsEditable)
-            self.table.setItem(row, 9, clip_item)
-
-    def populate_table(ui, data):
-        ui.table.setRowCount(len(data))
+    def populate_table(self, data):
+        """
+        썸네일 이미지를 Thumbnail 열 (0번째 열)에 실제 이미지로 표시
+        """
+        self.table.setRowCount(len(data))
+        self.table.setColumnCount(6)
+        self.table.setHorizontalHeaderLabels([
+            "Thumbnail", "File Name", "Width", "Height", "Directory", "Lens"
+        ])
 
         for row, item in enumerate(data):
-            # 0. 체크박스
-            checkbox = QCheckBox()
-            checkbox.setChecked(item.get("check", True))
-            ui.table.setCellWidget(row, 0, checkbox)
+            # 0. 썸네일 경로 생성
+            thumb_path = os.path.join("thumbnail", "thumb.jpg")
 
-            #  1. Thumbnail - sample로부터 썸네일 만들기
+            # 썸네일 QLabel 생성
             thumb_label = QLabel()
-            thumb_path = item.get("thumbnail", "")
             pixmap = QPixmap(thumb_path)
             if not pixmap.isNull():
-                thumb_label.setPixmap(pixmap.scaled(80, 45))  # 썸네일 사이즈
+                pixmap = pixmap.scaled(80, 45)  # 사이즈는 자유 조절
+                thumb_label.setPixmap(pixmap)
             else:
                 thumb_label.setText("No Image")
-            ui.table.setCellWidget(row, 1, thumb_label)
 
-            # 2~9. 나머지 필드들
-            keys = ["roll", "seq_name", "shot_name", "version", "type",
-                    "path", "scan_name", "clip_name"]
+            self.table.setCellWidget(row, 0, thumb_label)
 
-            for col, key in enumerate(keys, start=2):
-                val = item.get(key, "")
-                item_widget = QTableWidgetItem(val)
-                item_widget.setFlags(item_widget.flags() | Qt.ItemIsEditable)
-                ui.table.setItem(row, col, item_widget) 
+            # 나머지 텍스트 셀들
+            self.table.setItem(row, 1, QTableWidgetItem(item.get("FileName", "")))
+            self.table.setItem(row, 2, QTableWidgetItem(item.get("ImageWidth", "")))
+            self.table.setItem(row, 3, QTableWidgetItem(item.get("ImageHeight", "")))
+            self.table.setItem(row, 4, QTableWidgetItem(item.get("Directory", "")))
+            self.table.setItem(row, 5, QTableWidgetItem(item.get("FocalLength35efl", "")))
 
-    # def populate_table(self, data):
-    #     self.table.setRowCount(len(data))
-    #     self.table.setColumnCount(5)
-    #     self.table.setHorizontalHeaderLabels(["thumbnail", "File Name", "Width", "Height", "Date", "Lens"])
-
-    #     for row, item in enumerate(data):
-    #         self.table.setItem(row, 0, QTableWidgetItem(item.get("thumbnail", "")))
-    #         self.table.setItem(row, 1, QTableWidgetItem(item.get("FileName", "")))
-    #         self.table.setItem(row, 2, QTableWidgetItem(item.get("ImageWidth", "")))
-    #         self.table.setItem(row, 3, QTableWidgetItem(item.get("ImageHeight", "")))
-    #         self.table.setItem(row, 4, QTableWidgetItem(item.get("Date", "")))
-    #         self.table.setItem(row, 5, QTableWidgetItem(item.get("FocalLength35efl", "")))
-
-    # # 엑셀 데이터 가져옴 
-    # def get_table_data(self) -> list[dict]:
-    #     data = []
-    #     for row in range(self.table.rowCount()):
-    #         row_data = {}
-
-    #         # 0. Checkbox
-    #         checkbox = self.table.cellWidget(row, 0)
-    #         row_data["check"] = checkbox.isChecked() if checkbox else False
-
-    #         # 1. Thumbnail (경로는 따로 저장한 경우만)
-
-
-    #         # GUI용이라 패스, 또는 썸네일 경로 저장
-    #         row_data["thumbnail"] = ""
-
-    #         # 2~9. 텍스트 셀
-    #         keys = [
-    #             "roll", "seq_name", "shot_name", "version", "Filetype",
-    #             "scan_path", "scan_name", "clip_name", "resolution", "frame_count"
-    #         ]
-    #         for col, key in enumerate(keys, start=2):
-    #             item = self.table.item(row, col)
-    #             row_data[key] = item.text() if item else ""
-    #         data.append(row_data)
-    #     return data
-    
     def update_shotnames(self, mapping):
         """
         엑셀에서 불러온 Shot/Seq 이름을 테이블에 반영

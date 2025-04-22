@@ -1,6 +1,6 @@
 # controller.py
+# 버튼 이벤트 처리 
 from model import  (excel_manager, converter)
-                         # scan_loader, shotgrid_api)
 from PySide6.QtWidgets import QFileDialog, QMessageBox, QTableWidgetItem, QCheckBox, QLabel
 from model.excel_manager import save_to_excel
 from model.scan_structure import create_scan_structure
@@ -19,54 +19,43 @@ def extract_first_exr_path(folder):
         return None
     return os.path.join(folder, exr_list[0])
 
-# 썸넬생성
+# 썸넬생성1 ( 폴더 선택 후 첫 exr 파일을 찾음 )
 def on_select_path(ui):
+    # 폴더 선택
     folder = QFileDialog.getExistingDirectory(ui, "Select Scan Folder")
-    if folder:
-        ui.path_input.setText(folder)
+    if not folder:
+        return
 
-        # 1. 썸네일 생성
-        exr_files = [f for f in os.listdir(folder) if f.endswith(".exr")]
-        if exr_files:
-            exr_path = os.path.join(folder, exr_files[0])
-            thumb_path = os.path.join(folder, "thumbnail", "thumb.jpg")
-            convert_exr_to_jpg_single_frame_ffmpeg(exr_path, thumb_path)
+    ui.path_input.setText(folder)
 
-        # 2. metadata 생성
-        csv_path = os.path.join(folder, "metadata.csv")
-        if not os.path.exists(csv_path):
-            generate_metadata_csv(folder, csv_path)
+    # =============================
+    # 썸네일 생성 (첫 EXR 파일 기준)
+    # =============================
+    exr_files = [f for f in os.listdir(folder) if f.endswith(".exr")]
+    if exr_files:
+        first_exr = os.path.join(folder, exr_files[0])
+        thumbnail_path = os.path.join(folder, "thumbnail", "thumb.jpg")
+        convert_exr_to_jpg_single_frame_ffmpeg(first_exr, thumbnail_path)
+        print(f"[썸네일] 생성 완료: {thumbnail_path}")
+    else:
+        print("[썸네일] EXR 파일이 없어 썸네일 생략")
 
-        # 3. 테이블 로딩
-        data = load_metadata_csv(csv_path)
-        ui.populate_table(data)
+    # =============================
+    # 메타데이터 CSV 생성
+    # =============================
+    metadata_csv = os.path.join(folder, "metadata.csv")
+    if not os.path.exists(metadata_csv):
+        generate_metadata_csv(folder, metadata_csv)
+        print(f"[메타데이터] 생성 완료: {metadata_csv}")
+    else:
+        print(f"[메타데이터] 기존 파일 사용: {metadata_csv}")
 
-def on_load_clicked(ui):
-    # scan_dir = 폴더선택창에서 고른 경로 
-    scan_dir = ui.path_input.text()
-    sequences = find_exr_sequences(scan_dir)
-    data = []
-    for seq in sequences:
-        # 시퀀스 베이스로 shot 이름 생성 (PM이 이후 엑셀에서 수정 가능)
-        shot_name = seq['basename']
-
-        # 썸네일은 시퀀스의 첫 프레임으로 사용
-        thumbnail = seq['sample']
-
-        data.append({
-            "thumbnail": thumbnail,
-            "roll": "", 
-            "seq_name": "", 
-            "shot_name": shot_name,
-            "version": "v001",
-            "type": "org",
-            "path": seq['dir'],       # 폴더 경로만 저장 (시퀀스 단위)
-            "scan_name": "",
-            "clip_name": ""
-        })
-
-
-    ui.populate_table(data)
+    # =============================
+    # 테이블 로딩
+    # =============================
+    metadata = load_metadata_csv(metadata_csv)
+    ui.populate_table(metadata)
+    print(f"[UI] 테이블 데이터 로딩 완료")
 
 
 # 엑셀 저장기능 

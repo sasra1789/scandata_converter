@@ -3,28 +3,41 @@ import os
 import cv2
 import imageio
 import subprocess
+from scanfile_handler import find_exr_sequences
 
 
-# 수상(exr_path)
+# 썸넬생성2 (ffmpeg으로 exr -> jpg 변환) 
 def convert_exr_to_jpg_single_frame_ffmpeg(src_exr, dst_jpg):
     """
-    ffmpeg를 이용해 EXR 단일 프레임을 썸네일용 JPG로 변환
+    EXR 파일의 첫 프레임을 썸네일용 JPG로 변환
+    ffmpeg를 사용하여 1프레임만 추출합니다.
     """
-    cmd = f"ffmpeg -y -i \"{src_exr}\" -frames:v 1 \"{dst_jpg}\""
-    # os.makedirs(os.path.dirname(jpg_path), exist_ok=True)
 
-    # command = [
-    #     "ffmpeg", "-y",
-    #     "-i", exr_path,
-    #     "-frames:v", "1",
-    #     "-q:v", "2",
-    #     jpg_path
-    # ]
-    # try:
-    #     subprocess.run(command, check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-    #     print(f"[FFMPEG] 썸네일 생성 완료: {jpg_path}")
-    # except subprocess.CalledProcessError:
-    #     print(f"[FFMPEG] 변환 실패: {exr_path}")
+    # 1 출력 경로 디렉토리 생성
+    os.makedirs(os.path.dirname(dst_jpg), exist_ok=True)
+
+    # 2 ffmpeg 명령어 구성
+    command = [
+        "ffmpeg", "-y",               # 기존 파일 덮어쓰기
+        "-i", src_exr,                # 입력 EXR
+        "-frames:v", "1",             # 첫 프레임만 추출
+        "-q:v", "2",                  # 높은 품질 JPG
+        dst_jpg                       # 출력 JPG 경로
+    ]
+
+    #  명령 실행
+    try:
+        subprocess.run(
+            command,
+            check=True,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL
+        )
+        print(f" [FFMPEG] 썸네일 생성 완료: {dst_jpg}")
+
+    except subprocess.CalledProcessError as e:
+        print(f" [FFMPEG] 변환 실패: {src_exr}")
+        print(f"↳ 오류 메시지: {e}")
 
 def create_mp4_from_jpgs(jpg_dir, dst_path):
     """
@@ -78,3 +91,22 @@ def generate_montage(jpg_dir, dst_path):
     os.makedirs(os.path.dirname(dst_path), exist_ok=True)
     cv2.imwrite(dst_path, montage)
     print(f"[Montage] 저장 완료: {dst_path}")
+
+def load_scan_data(folder_path):
+    """EXR 파일을 기반으로 테이블에 보여줄 데이터를 구성"""
+    file_list = find_exr_sequences(folder_path)
+    rows = []
+
+    for f in file_list:
+        file_name = os.path.basename(f)
+        shot_name = ""  # 사용자가 직접 입력할 수 있도록 비워둠
+        version = "v001"  # 기본 버전
+        rows.append({
+            "thumbnail": f,       # 썸네일 경로 (나중에 이미지 처리)
+            "file_name": file_name,
+            "shot_name": shot_name,
+            "version": version,
+            "path": f
+        })
+
+    return rows

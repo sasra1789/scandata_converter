@@ -1,3 +1,4 @@
+# 폴더구조 자동생성
 import os
 
 def create_scan_structure(root_dir, sequence, shot, version):
